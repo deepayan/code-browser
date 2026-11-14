@@ -259,7 +259,9 @@
       }
 
       if (env.type === 'qualified-closure') {
-          const targetPkg = env.token.targetPkg;
+	  console.log(env)
+	  return; // FIXME figure out what's happening... this is for things like stats::runif
+//          const targetPkg = env.token.targetPkg;
           const sym = env.content;
           env.tag = 'a';
           env.attributes.href = `display.html?pkg=${encodeURIComponent(targetPkg)}&sym=${encodeURIComponent(sym)}`;
@@ -313,7 +315,8 @@
 
           // 5. Check global exports registry
           if (manifest && manifest.exports && manifest.exports[sym]) {
-              const pkgs = manifest.exports[sym];
+              let pkgs = manifest.exports[sym];
+	      pkgs = Array.isArray(pkgs) ? pkgs : [pkgs];
               const target = pkgs.includes('base') ? 'base' : pkgs[0];
               env.tag = 'a';
               env.attributes.href = `display.html?pkg=${encodeURIComponent(target)}&sym=${encodeURIComponent(sym)}`;
