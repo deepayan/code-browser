@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>Regexp Search for R Functions</title>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=yes' />
+<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css' integrity='sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh' crossorigin='anonymous'>
+<link rel='stylesheet' href='https://cdn.datatables.net/1.11.3/css/dataTables.bootstrap4.min.css'>
+<style type='text/css'>
+  body { padding-top: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  #ftable { font-family: monospace; font-size: 0.95rem; }
+  .badge-pkg { font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<div class='container'>
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h3 mb-0">Regexp Search for R Functions</h1>
+      <small class="text-muted">Interactive code search across base R and CRAN packages</small>
+    </div>
+    <div>
+      <a href="display.html" class="btn btn-outline-secondary">Open Code Viewer</a>
+    </div>
+  </div>
+
+  <table class='table table-striped table-bordered' id='ftable'>
+    <thead>
+      <tr>
+        <th>Function / Symbol</th>
+        <th>Source File</th>
+        <th>Line</th>
+        <th>Package</th>
+      </tr>
+    </thead>
+  </table>
+</div>
+
+<script src='https://code.jquery.com/jquery-3.4.1.min.js' crossorigin='anonymous'></script>
+<script src='https://cdn.datatables.net/1.11.3/js/jquery.dataTables.min.js' crossorigin='anonymous'></script>
+<script src='https://cdn.datatables.net/1.11.3/js/dataTables.bootstrap4.min.js' crossorigin='anonymous'></script>
+<script src='https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/js/bootstrap.min.js' crossorigin='anonymous'></script>
+
+<script type='text/javascript'>
+  $(document).ready(function() {
+      var loc = window.location.href;
+      var PAGE_BASE = loc.substring(0, loc.lastIndexOf('/'));
+
+      $('#ftable').DataTable({
+          'paging': true,
+          'ordering': true,
+          'ajax': PAGE_BASE + '/taginfo.json',
+          'deferRender': true,
+          'columns': [
+              { 'searchable': true },
+              { 'searchable': true },
+              { 'searchable': false },
+              { 'searchable': true, 'render': function(data) {
+                  return '<span class="badge badge-info badge-pkg">' + (data || '') + '</span>';
+              }}
+          ],
+          'search': {
+              'regex': true,
+              'smart': false
+          }
+      });
+  });
+</script>
+
+</body>
+</html>

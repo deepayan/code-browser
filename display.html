@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset='utf-8' />
+<title>R Source Code Navigator</title>
+<meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=yes' />
+<link rel='stylesheet' href='https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css' integrity='sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh' crossorigin='anonymous'>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/themes/prism-coy.min.css" integrity="sha512-LOT5F67SMZVdXMrvQe4S1ZHu5l6xk3CST2qqno9kY329OsJBBpybnq+fM9qG4ZSaNzPOjoGzHAeBamSSJyyuZg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/plugins/line-numbers/prism-line-numbers.min.css" integrity="sha512-cbQXwDFK7lj2Fqfkuxbo5iD1dSbLlJGXGpfTDqbggqjHJeyzx88I3rfwjS38WJag/ihH7lzuGlGHpDBymLirZQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/plugins/line-highlight/prism-line-highlight.min.css" integrity="sha512-nXlJLUeqPMp1Q3+Bd8Qds8tXeRVQscMscwysJm821C++9w6WtsFbJjPenZ8cQVMXyqSAismveQJc0C1splFDCA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+<style type='text/css'>
+  body { padding-top: 15px; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  .nav-header { margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #dee2e6; }
+  .badge-pkg { font-size: 0.9rem; margin-right: 5px; }
+  .token.closure, .token.qualified-closure { text-decoration: underline dotted #0066cc; color: #0056b3; font-weight: 500; cursor: pointer; }
+  .token.closure:hover, .token.qualified-closure:hover { color: #d63384; text-decoration: underline solid #d63384; }
+  .token.token-c-link { color: #b02a37; font-weight: 600; text-decoration: underline dotted #b02a37; cursor: pointer; }
+  .token.token-c-link:hover { color: #dc3545; text-decoration: underline solid #dc3545; }
+  .token.c-func { color: #0d6efd; font-weight: 500; cursor: pointer; }
+  .token.c-func:hover { text-decoration: underline; color: #d63384; }
+  pre[class*="language-"] { max-height: 85vh; border-radius: 4px; border: 1px solid #e9ecef; }
+  #loading { display: none; margin: 20px 0; font-style: italic; color: #6c757d; }
+  .legend-bar { font-size: 0.82rem; margin-top: 5px; color: #6c757d; }
+  .legend-item { margin-right: 15px; display: inline-flex; align-items: center; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+</style>
+</head>
+<body onload='init();'>
+<div class='container-fluid px-4'>
+
+<div class="nav-header">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <h4 class="mb-0 d-inline-block">R Source Code Navigator</h4>
+      <span class="badge badge-primary badge-pkg ml-2" id="pkg-badge">base</span>
+      <span class="badge badge-secondary badge-pkg" id="repo-badge">r-devel/r-svn</span>
+    </div>
+    <div>
+      <a href="index.html" class="btn btn-sm btn-outline-primary">Search Functions</a>
+    </div>
+  </div>
+
+  <div class="input-group">
+    <div class="input-group-prepend">
+      <span class="input-group-text">File:</span>
+    </div>
+    <input type="text" class="form-control" id="filename" placeholder="library/tools/R/code2html.R" value="library/tools/R/code2html.R">
+    <div class="input-group-append">
+      <button class="btn btn-primary" type="button" onclick="navigateToFile();">Load File</button>
+    </div>
+  </div>
+
+  <div class="legend-bar">
+    <span class="legend-item"><span class="legend-dot" style="background:#0056b3;"></span> Blue: R Function Call (click to jump)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#b02a37;"></span> Red: C Native Entry / Primitive (.Call, .Internal, .Primitive)</span>
+    <span class="legend-item"><span class="legend-dot" style="background:#198754;"></span> Green: C/C++ Function</span>
+  </div>
+</div>
+
+<div id="loading">Loading source file from GitHub...</div>
+<div id="error-msg" class="alert alert-danger" style="display:none;"></div>
+
+<pre id="line" class="line-numbers"><code id="code-block"></code></pre>
+
+<footer>
+  <p class="text-muted small">Powered by <a href="https://prismjs.com">Prism</a>, <a href="https://github.com/r-devel/r-svn">r-devel/r-svn</a>, and <a href="https://github.com/cran">github.com/cran</a></p>
+</footer>
+
+</div>
+
+<!-- Dependencies -->
+<script src='https://code.jquery.com/jquery-3.4.1.min.js' crossorigin='anonymous'></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/prism.min.js" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/components/prism-clike.min.js" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/components/prism-c.min.js" referrerpolicy="no-referrer"></script>
+<script src="prism-r.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/plugins/line-numbers/prism-line-numbers.min.js" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.27.0/plugins/line-highlight/prism-line-highlight.min.js" referrerpolicy="no-referrer"></script>
+
+<script type='text/javascript'>
+  var manifest = null;
+  var currentPkg = 'base';
+  var currentPkgData = null;
+  var loadedPackages = {};
+  var coreCData = null;
+
+  async function loadManifest() {
+      try {
+          const resp = await fetch('metadata/manifest.json');
+          if (resp.ok) {
+              manifest = await resp.json();
+          }
+      } catch (e) {
+          console.error('Failed to load manifest.json', e);
+      }
+  }
+
+  async function getPackageData(pkgName) {
+      if (loadedPackages[pkgName]) return loadedPackages[pkgName];
+      try {
+          const resp = await fetch(`metadata/packages/${pkgName}.json`);
+          if (resp.ok) {
+              const data = await resp.json();
+              loadedPackages[pkgName] = data;
+              return data;
+          }
+      } catch (e) {
+          console.warn(`Could not load metadata for ${pkgName}`, e);
+      }
+      return null;
+  }
+
+  function inferPackageFromFile(filepath) {
+      if (!filepath) return 'base';
+      if (filepath.startsWith('library/')) {
+          const parts = filepath.split('/');
+          return parts[1];
+      }
+      if (filepath.startsWith('src/library/')) {
+          const parts = filepath.split('/');
+          return parts[2];
+      }
+      if (filepath.startsWith('main/') || filepath.startsWith('appl/') ||
+          filepath.startsWith('nmath/') || filepath.startsWith('include/') ||
+          filepath.startsWith('src/main/') || filepath.startsWith('src/include/')) {
+          return '_core_c';
+      }
+      return 'base';
+  }
+
+  function getRawGithubUrl(pkg, filepath) {
+      const pkgInfo = manifest && manifest.packages ? manifest.packages[pkg] : null;
+      if (pkg === '_core_c' || (pkgInfo && pkgInfo.is_base)) {
+          let cleanPath = filepath.startsWith('src/') ? filepath.substring(4) : filepath;
+          return `https://raw.githubusercontent.com/r-devel/r-svn/trunk/src/${cleanPath}`;
+      } else if (pkgInfo && !pkgInfo.is_base) {
+          const repo = pkgInfo.repo || `cran/${pkg}`;
+          const branch = pkgInfo.branch || 'master';
+          let cleanPath = filepath.startsWith('/') ? filepath.substring(1) : filepath;
+          return `https://raw.githubusercontent.com/${repo}/${branch}/${cleanPath}`;
+      } else {
+          // Fallback heuristic
+          if (filepath.startsWith('library/') || filepath.startsWith('main/') || filepath.startsWith('appl/') || filepath.startsWith('include/')) {
+              return `https://raw.githubusercontent.com/r-devel/r-svn/trunk/src/${filepath}`;
+          }
+          return `https://raw.githubusercontent.com/cran/${pkg}/master/${filepath}`;
+      }
+  }
+
+  // Token classification hook in Prism
+  function analyzeTokens(env) {
+      const tokens = env.tokens;
+      const isC = env.language === 'c' || env.language === 'clike';
+
+      if (isC) {
+          for (let i = 0; i < tokens.length; i++) {
+              if (tokens[i].type === 'function' || (typeof tokens[i] === 'string' && /^[A-Za-z0-9_]+$/.test(tokens[i]))) {
+                  // Check if followed by (
+                  let j = i + 1;
+                  while (j < tokens.length && typeof tokens[j] === 'string' && /^\s*$/.test(tokens[j])) j++;
+                  if (j < tokens.length && (tokens[j] === '(' || (tokens[j].content && tokens[j].content === '('))) {
+                      if (typeof tokens[i] === 'string') {
+                          tokens[i] = new Prism.Token('c-func', tokens[i], 'c-func');
+                      } else {
+                          tokens[i].type = 'c-func';
+                      }
+                  }
+              }
+          }
+          return;
+      }
+
+      // R Token Analysis
+      for (let i = 0; i < tokens.length; i++) {
+          const tok = tokens[i];
+
+          // 1. Qualified calls: pkg::fun or pkg:::fun
+          if (tok.type === 'package-prefix' && (i + 2) < tokens.length) {
+              const opTok = tokens[i + 1];
+              const funTok = tokens[i + 2];
+              if (opTok.type === 'namespace-operator' && funTok.type === 'binding') {
+                  funTok.type = 'qualified-closure';
+                  funTok.targetPkg = tok.content;
+              }
+          }
+
+          // 2. Native entries: .Primitive("foo") or .Internal(foo(...))
+          if (tok.type === 'native-entry') {
+              const entryName = tok.content;
+              let j = i + 1;
+              while (j < tokens.length && typeof tokens[j] === 'string' && /^\s*$/.test(tokens[j])) j++;
+              if (j < tokens.length && (tokens[j] === '(' || (tokens[j].content && tokens[j].content === '('))) {
+                  let k = j + 1;
+                  while (k < tokens.length && typeof tokens[k] === 'string' && /^\s*$/.test(tokens[k])) k++;
+                  if (k < tokens.length) {
+                      const argTok = tokens[k];
+                      if (entryName === '.Primitive') {
+                          if (argTok.type === 'string') {
+                              argTok.type = 'primitive-link';
+                              argTok.targetName = argTok.content.replace(/^['"]|['"]$/g, '');
+                          }
+                      } else if (entryName === '.Internal') {
+                          if (argTok.type === 'binding') {
+                              argTok.type = 'primitive-link';
+                              argTok.targetName = argTok.content;
+                          }
+                      } else if (entryName === '.Call' || entryName === '.External' || entryName === '.C' || entryName === '.Fortran') {
+                          if (argTok.type === 'binding' || argTok.type === 'string') {
+                              argTok.type = 'routine-link';
+                              argTok.targetName = argTok.content.replace(/^['"]|['"]$/g, '');
+                          }
+                      }
+                  }
+              }
+          }
+
+          // 3. Regular function calls: binding followed by (
+          if (tok.type === 'binding') {
+              let j = i + 1;
+              while (j < tokens.length && typeof tokens[j] === 'string' && /^\s*$/.test(tokens[j])) j++;
+              if (j < tokens.length && (tokens[j] === '(' || (tokens[j].content && tokens[j].content === '('))) {
+                  tok.type = 'closure';
+              }
+          }
+      }
+  }
+
+  // Token wrapping hook: transform tokens into hyperlinks
+  function wrapTokenLink(env) {
+      if (env.type === 'primitive-link') {
+          const sym = env.token.targetName || env.content.replace(/^['"]|['"]$/g, '');
+          if (manifest && manifest.r_primitives && manifest.r_primitives[sym]) {
+              const prim = manifest.r_primitives[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=_core_c&file=${encodeURIComponent(prim.file)}#line.${prim.line}`;
+              env.attributes.title = `R Core C Primitive: ${prim.c_symbol} (${prim.file}:${prim.line})`;
+              env.attributes.class = 'token-c-link';
+          }
+          return;
+      }
+
+      if (env.type === 'routine-link') {
+          const sym = env.token.targetName || env.content.replace(/^['"]|['"]$/g, '');
+          let rt = null;
+          if (currentPkgData && currentPkgData.c_routines) {
+              rt = currentPkgData.c_routines[sym];
+              if (!rt && sym.startsWith('C_')) {
+                  rt = currentPkgData.c_routines[sym.substring(2)];
+              }
+          }
+          if (rt && rt.file) {
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=${currentPkg}&file=${encodeURIComponent(rt.file)}#line.${rt.line}`;
+              env.attributes.title = `C Routine: ${rt.c_symbol} (${rt.file}:${rt.line})`;
+              env.attributes.class = 'token-c-link';
+          }
+          return;
+      }
+
+      if (env.type === 'qualified-closure') {
+          const targetPkg = env.token.targetPkg;
+          const sym = env.content;
+          env.tag = 'a';
+          env.attributes.href = `display.html?pkg=${encodeURIComponent(targetPkg)}&sym=${encodeURIComponent(sym)}`;
+          env.attributes.title = `Qualified call: ${targetPkg}::${sym}`;
+          return;
+      }
+
+      if (env.type === 'closure') {
+          const sym = env.content;
+
+          // 1. Check local package definitions
+          if (currentPkgData && currentPkgData.r_symbols && currentPkgData.r_symbols[sym]) {
+              const loc = currentPkgData.r_symbols[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=${currentPkg}&file=${encodeURIComponent(loc.file)}#line.${loc.line}`;
+              env.attributes.title = `${currentPkg} (local): line ${loc.line}`;
+              return;
+          }
+
+          // 2. Check importFrom in current package
+          if (currentPkgData && currentPkgData.import_from && currentPkgData.import_from[sym]) {
+              const impPkg = currentPkgData.import_from[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=${encodeURIComponent(impPkg)}&sym=${encodeURIComponent(sym)}`;
+              env.attributes.title = `Imported from ${impPkg}`;
+              return;
+          }
+
+          // 3. Check core primitive
+          if (manifest && manifest.r_primitives && manifest.r_primitives[sym]) {
+              const prim = manifest.r_primitives[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=_core_c&file=${encodeURIComponent(prim.file)}#line.${prim.line}`;
+              env.attributes.title = `Base primitive -> C: ${prim.c_symbol}`;
+              env.attributes.class = 'token-c-link';
+              return;
+          }
+
+          // 4. Check dependencies of current package
+          if (manifest && manifest.packages && manifest.packages[currentPkg]) {
+              const deps = manifest.packages[currentPkg].depends || [];
+              for (const d of deps) {
+                  if (manifest.exports && manifest.exports[sym] && manifest.exports[sym].includes(d)) {
+                      env.tag = 'a';
+                      env.attributes.href = `display.html?pkg=${encodeURIComponent(d)}&sym=${encodeURIComponent(sym)}`;
+                      env.attributes.title = `Exported by dependency '${d}'`;
+                      return;
+                  }
+              }
+          }
+
+          // 5. Check global exports registry
+          if (manifest && manifest.exports && manifest.exports[sym]) {
+              const pkgs = manifest.exports[sym];
+              const target = pkgs.includes('base') ? 'base' : pkgs[0];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=${encodeURIComponent(target)}&sym=${encodeURIComponent(sym)}`;
+              env.attributes.title = pkgs.length > 1 ? `Exported by: ${pkgs.join(', ')}` : `Exported by ${target}`;
+              return;
+          }
+      }
+
+      // C function call
+      if (env.type === 'c-func') {
+          const sym = env.content;
+          // Check current package C symbols
+          if (currentPkgData && currentPkgData.c_symbols && currentPkgData.c_symbols[sym]) {
+              const loc = currentPkgData.c_symbols[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=${currentPkg}&file=${encodeURIComponent(loc.file)}#line.${loc.line}`;
+              env.attributes.title = `${currentPkg} C function: line ${loc.line}`;
+              return;
+          }
+          // Check Core C symbols
+          if (coreCData && coreCData.c_symbols && coreCData.c_symbols[sym]) {
+              const loc = coreCData.c_symbols[sym];
+              env.tag = 'a';
+              env.attributes.href = `display.html?pkg=_core_c&file=${encodeURIComponent(loc.file)}#line.${loc.line}`;
+              env.attributes.title = `R Core C: line ${loc.line}`;
+              return;
+          }
+      }
+  }
+
+  async function resolveSymbolAndNavigate(pkg, sym) {
+      const data = await getPackageData(pkg);
+      if (data && data.r_symbols && data.r_symbols[sym]) {
+          const loc = data.r_symbols[sym];
+          window.location.href = `display.html?pkg=${pkg}&file=${encodeURIComponent(loc.file)}#line.${loc.line}`;
+          return;
+      }
+      if (data && data.c_symbols && data.c_symbols[sym]) {
+          const loc = data.c_symbols[sym];
+          window.location.href = `display.html?pkg=${pkg}&file=${encodeURIComponent(loc.file)}#line.${loc.line}`;
+          return;
+      }
+      document.getElementById('error-msg').innerText = `Symbol '${sym}' not found in package '${pkg}'.`;
+      document.getElementById('error-msg').style.display = 'block';
+  }
+
+  async function loadFileContent(pkg, filepath, lineNum) {
+      document.getElementById('loading').style.display = 'block';
+      document.getElementById('error-msg').style.display = 'none';
+
+      const rawUrl = getRawGithubUrl(pkg, filepath);
+      const isC = /\.(c|h|cpp|cc|hpp|hh)$/i.test(filepath);
+      const lang = isC ? 'c' : 'r';
+
+      try {
+          const resp = await fetch(rawUrl);
+          if (!resp.ok) {
+              throw new Error(`HTTP ${resp.status} fetching ${rawUrl}`);
+          }
+          const text = await resp.text();
+
+          const pre = document.getElementById('line');
+          pre.className = `line-numbers language-${lang}`;
+          if (lineNum) {
+              pre.setAttribute('data-line', lineNum);
+          } else {
+              pre.removeAttribute('data-line');
+          }
+
+          const codeBlock = document.getElementById('code-block');
+          codeBlock.className = `language-${lang}`;
+          codeBlock.textContent = text;
+
+          Prism.highlightElement(codeBlock);
+
+          document.getElementById('loading').style.display = 'none';
+
+          // Scroll to highlighted line
+          setTimeout(() => {
+              if (lineNum) {
+                  const hl = document.querySelector('.line-highlight') ||
+                             document.querySelector(`.line-numbers-rows > span:nth-child(${lineNum})`);
+                  if (hl) {
+                      hl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }
+              }
+          }, 150);
+
+      } catch (err) {
+          document.getElementById('loading').style.display = 'none';
+          const errDiv = document.getElementById('error-msg');
+          errDiv.innerHTML = `<strong>Error loading file:</strong> ${err.message}<br><small>URL: <a href="${rawUrl}" target="_blank">${rawUrl}</a></small>`;
+          errDiv.style.display = 'block';
+      }
+  }
+
+  function navigateToFile() {
+      const file = document.getElementById('filename').value.trim();
+      const pkg = inferPackageFromFile(file);
+      window.location.href = `display.html?pkg=${encodeURIComponent(pkg)}&file=${encodeURIComponent(file)}`;
+  }
+
+  async function init() {
+      Prism.hooks.add('after-tokenize', analyzeTokens);
+      Prism.hooks.add('wrap', wrapTokenLink);
+
+      await loadManifest();
+      coreCData = await getPackageData('_core_c');
+
+      const params = (new URL(document.location)).searchParams;
+      let pkg = params.get('pkg');
+      let file = params.get('file');
+      const sym = params.get('sym');
+
+      // If resolving via symbol query
+      if (sym && pkg) {
+          await resolveSymbolAndNavigate(pkg, sym);
+          return;
+      }
+
+      if (!file) {
+          file = 'library/tools/R/code2html.R';
+      }
+      if (!pkg) {
+          pkg = inferPackageFromFile(file);
+      }
+
+      currentPkg = pkg;
+      currentPkgData = await getPackageData(pkg);
+
+      document.getElementById('filename').value = file;
+      document.getElementById('pkg-badge').innerText = pkg;
+
+      const pkgInfo = manifest && manifest.packages ? manifest.packages[pkg] : null;
+      document.getElementById('repo-badge').innerText = pkgInfo ? pkgInfo.repo : (pkg === '_core_c' ? 'r-devel/r-svn' : 'cran/' + pkg);
+
+      // Check for line number in hash (e.g. #line.46 or #line-46 or #L46)
+      let lineNum = null;
+      const hash = window.location.hash;
+      if (hash) {
+          const m = hash.match(/(?:line[.-]|L)(\d+)/i);
+          if (m) lineNum = parseInt(m[1], 10);
+      }
+
+      await loadFileContent(pkg, file, lineNum);
+  }
+</script>
+
+</body>
+</html>
